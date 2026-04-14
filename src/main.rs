@@ -1,12 +1,10 @@
+use console::{Emoji, style};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use inquire::{CustomType, MultiSelect, Text, validator::Validation};
 use pioneer_converter::{check_audio_quality, get_presets, run_conversion};
 use std::path::{Path, PathBuf};
 use tokio::task::JoinSet;
 use walkdir::WalkDir;
-
-// TUI Tooling
-use console::{Emoji, style};
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use inquire::{CustomType, MultiSelect, Text, validator::Validation};
 
 static CHECK: Emoji<'_, '_> = Emoji("✅ ", "");
 static WARN: Emoji<'_, '_> = Emoji("⚠️  ", "");
@@ -28,7 +26,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         style("==========================================================\n").cyan()
     );
 
-    // --- Interactive Inputs ---
     let input_dir = Text::new("Where is your source music folder?")
         .with_default("./input")
         .with_validator(|val: &str| {
@@ -102,9 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let stem = path.file_stem().unwrap().to_str().unwrap().to_string();
             let output_file = dest_dir.join(format!("{}.{}", stem, profile.ext));
 
-            // 1. Real-time Quality Check
             if let Some(msg) = check_audio_quality(&path, &profile) {
-                // We use m.println so the warning appears ABOVE the progress bar
                 m.println(format!(
                     "  {} {}: {}",
                     style(WARN).yellow(),
@@ -114,7 +109,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 final_warning_count += 1;
             }
 
-            // 2. Update the "Current File" display
             pb.set_message(format!(
                 "  {} Processing: {}",
                 style("↳").dim(),
@@ -126,7 +120,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let profile_clone = profile.clone();
             let stem_clone = stem.clone();
 
-            // Throttling Logic
             while set.len() >= num_cores {
                 if let Some(res) = set.join_next().await {
                     let _ = res.unwrap();
@@ -145,7 +138,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             });
         }
 
-        // Final Drain
         while let Some(res) = set.join_next().await {
             let _ = res.unwrap();
             completed += 1;
