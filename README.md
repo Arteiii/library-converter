@@ -1,6 +1,6 @@
 # Pioneer DJ Library Converter
 
-A **pure Rust** audio transcoding engine designed to optimize music libraries for the entire spectrum of Pioneer DJ hardware. From the ancient CDJ-850 to the flagship CDJ-3000, this tool ensures your files load instantly and play at the correct pitch every time.
+A **pure Rust** audio transcoding engine designed to optimize music libraries for the entire spectrum of Pioneer DJ hardware.
 
 ---
 
