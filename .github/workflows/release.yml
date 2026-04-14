@@ -40,7 +40,7 @@ jobs:
         run: |
           mkdir dist
           cp target/release/${{ matrix.artifact_name }} dist/
-          cp LICENSE dist/
+          cp LICENSE-FOUL dist/
           cd dist && tar -czvf ../${{ matrix.asset_name }}.tar.gz *
 
       - name: Package Assets (Windows)
@@ -48,7 +48,7 @@ jobs:
         run: |
           mkdir dist
           copy target\release\${{ matrix.artifact_name }} dist\
-          copy LICENSE dist\
+          copy LICENSE-FOUL dist\
           powershell Compress-Archive -Path dist\* -DestinationPath ${{ matrix.asset_name }}.zip
 
       - name: Upload to Release
