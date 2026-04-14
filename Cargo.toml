@@ -1,0 +1,19 @@
+[package]
+name = "pioneer_converter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1", features = ["full", "process"] }
+inquire = "0.9.4"
+indicatif = { version = "0.18.4", features = ["tokio"] }
+console = "0.16.3" # For colors and terminal styling
+
+walkdir = "2"
+
+symphonia = { version = "0.5", features = ["all"] }
+rubato = { version = "2.0.0"  } 
+hound = "3.5"
+audioadapter-buffers = { version = "3.0.0" }
+regex = "1"
+
