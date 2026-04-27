@@ -45,17 +45,18 @@ If you run the program without arguments, it will guide you through a set of int
 
 you can bypass the questions by passing arguments directly.
 
-| Flag | Full Name   | Description                                                                     |
-| :--- | :---------- | :------------------------------------------------------------------------------ |
-| `-i` | `--input`   | Path to your source music folder                                                |
-| `-o` | `--output`  | Path for the converted output folder                                            |
-| `-p` | `--presets` | Comma-separated list of formats (`flagship`, `standard`, `legacy`, `universal`) |
-| `-c` | `--cores`   | Number of CPU cores to use for parallel processing                              |
+| Flag | Full Name           | Description                                                                     |
+| :--- | :------------------ | :------------------------------------------------------------------------------ |
+| `-i` | `--input`           | Path to your source music folder                                                |
+| `-o` | `--output`          | Path for the converted output folder                                            |
+| `-p` | `--presets`         | Comma-separated list of formats (`flagship`, `standard`, `legacy`, `universal`) |
+| `-c` | `--cores`           | Number of CPU cores to use for parallel processing                              |
+| `-f` | `--force-upscaling` | Force upsampling even if source quality is lower than preset [default: false]   |
 
 **Example Command:**
 
 ```bash
-cargo run --release -- -i "D:\Music\originals" -o "D:\Music\originals_format" -p flagship,standard -c 10
+cargo run --release -- -i "D:\Music\originals" -o "D:\Music\originals_format" -p flagship,standard -c 10 -f false
 ```
 
 ## Technical Architecture

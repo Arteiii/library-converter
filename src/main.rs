@@ -30,7 +30,7 @@ struct Args {
     cores: Option<usize>,
 
     /// Force upsampling even if source quality is lower than preset
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "false")]
     force_upsampling: Option<bool>,
 }
 
