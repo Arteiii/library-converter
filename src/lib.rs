@@ -44,7 +44,7 @@ pub fn get_presets() -> Vec<ConversionProfile> {
             name: "standard",
             ext: "aiff",
             target_sample_rate: 48000,
-            target_bit_depth: 24,
+            target_bit_depth: 16,
         },
         ConversionProfile {
             name: "legacy",
@@ -138,6 +138,7 @@ pub fn run_conversion(
     input: PathBuf,
     output: PathBuf,
     profile: &ConversionProfile,
+    force_upsampling: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let file = File::open(&input)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
@@ -159,9 +160,10 @@ pub fn run_conversion(
         .default_track()
         .ok_or("No default audio track found")?;
 
-    let source_hz = track.codec_params.sample_rate.unwrap_or(44100);
-    let channels = track
-        .codec_params
+    let params = &track.codec_params;
+    let source_hz = params.sample_rate.unwrap_or(44100);
+    let source_bits = params.bits_per_sample.unwrap_or(16);
+    let channels = params
         .channels
         .unwrap_or(
             symphonia::core::audio::Channels::FRONT_LEFT
@@ -173,15 +175,27 @@ pub fn run_conversion(
     let mut decoder =
         symphonia::default::get_codecs().make(&track.codec_params, &DecoderOptions::default())?;
 
+    let mut target_hz = profile.target_sample_rate;
+    let mut target_bits = profile.target_bit_depth;
+
+    if !force_upsampling {
+        if source_hz < target_hz {
+            target_hz = source_hz;
+        }
+        if source_bits < target_bits {
+            target_bits = source_bits;
+        }
+    }
+
     let spec = WavSpec {
         channels: channels as u16,
-        sample_rate: profile.target_sample_rate,
-        bits_per_sample: profile.target_bit_depth as u16,
+        sample_rate: target_hz,
+        bits_per_sample: target_bits as u16,
         sample_format: SampleFormat::Int,
     };
-    let mut writer = WavWriter::create(&output, spec)?;
 
-    let needs_resampling = source_hz != profile.target_sample_rate;
+    let mut writer = WavWriter::create(&output, spec)?;
+    let needs_resampling = source_hz != target_hz;
 
     let mut resampler = if needs_resampling {
         Some(Fft::<f32>::new(

@@ -1,7 +1,7 @@
 use clap::Parser;
 use console::{Emoji, style};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use inquire::{CustomType, MultiSelect, Text, validator::Validation};
+use inquire::{Confirm, CustomType, MultiSelect, Text, validator::Validation};
 use pioneer_converter::{check_audio_quality, get_presets, run_conversion};
 use std::path::{Path, PathBuf};
 use tokio::task::JoinSet;
@@ -28,6 +28,10 @@ struct Args {
     /// Number of CPU cores to use
     #[arg(short, long)]
     cores: Option<usize>,
+
+    /// Force upsampling even if source quality is lower than preset
+    #[arg(short, long)]
+    force_upsampling: Option<bool>,
 }
 
 #[tokio::main]
@@ -83,6 +87,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             filtered
         }
         None => MultiSelect::new("Target hardware tiers:", all_available).prompt()?,
+    };
+
+    let force_upsampling = match args.force_upsampling {
+        Some(b) => b,
+        None => Confirm::new("Force upsampling for low-quality files (not recommended)?")
+            .with_default(false)
+            .with_help_message("If no, low-res files will keep their native rate to save space.")
+            .prompt()?,
     };
 
     let output_base: String = match args.output {
@@ -180,7 +192,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             set.spawn(async move {
                 let res = tokio::task::spawn_blocking(move || {
-                    run_conversion(path_clone, output_clone, &profile_clone)
+                    run_conversion(path_clone, output_clone, &profile_clone, force_upsampling)
                 })
                 .await
                 .unwrap();
