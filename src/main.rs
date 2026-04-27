@@ -1,3 +1,4 @@
+use clap::Parser;
 use console::{Emoji, style};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use inquire::{CustomType, MultiSelect, Text, validator::Validation};
@@ -9,8 +10,30 @@ use walkdir::WalkDir;
 static CHECK: Emoji<'_, '_> = Emoji("✅ ", "");
 static WARN: Emoji<'_, '_> = Emoji("⚠️  ", "");
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path to source music folder
+    #[arg(short, long)]
+    input: Option<PathBuf>,
+
+    /// Path to output folder
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+
+    /// Comma-separated list of presets (flagship, standard, legacy, universal)
+    #[arg(short, long, value_delimiter = ',')]
+    presets: Option<Vec<String>>,
+
+    /// Number of CPU cores to use
+    #[arg(short, long)]
+    cores: Option<usize>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+
     println!(
         "{}",
         style("==========================================================").cyan()
@@ -26,42 +49,70 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         style("==========================================================\n").cyan()
     );
 
-    let input_dir = Text::new("Where is your source music folder?")
-        .with_default("./input")
-        .with_validator(|val: &str| {
-            if Path::new(val).is_dir() {
-                Ok(Validation::Valid)
-            } else {
-                Ok(Validation::Invalid("Directory not found!".into()))
-            }
-        })
-        .prompt()?;
-
-    let all_presets = get_presets();
-    let selected_profiles =
-        MultiSelect::new("Target hardware tiers:", all_presets.clone()).prompt()?;
-
-    let default_output = if selected_profiles.len() == 1 {
-        format!("./converted_{}", selected_profiles[0].name)
-    } else {
-        "./converted".to_string()
+    let input_dir: String = match args.input {
+        Some(p) if p.is_dir() => p.to_string_lossy().into_owned(),
+        _ => Text::new("Where is your source music folder?")
+            .with_default("./input")
+            .with_validator(|val: &str| {
+                if Path::new(val).is_dir() {
+                    Ok(Validation::Valid)
+                } else {
+                    Ok(Validation::Invalid("Directory not found!".into()))
+                }
+            })
+            .prompt()?,
     };
 
-    let output_base = Text::new("Output folder:")
-        .with_default(&default_output)
-        .prompt()?;
+    let all_available = get_presets();
+    let selected_profiles = match args.presets {
+        Some(p) => {
+            let mut filtered = Vec::new();
+            for name in p {
+                if let Some(prof) = all_available
+                    .iter()
+                    .find(|ap| ap.name == name.to_lowercase())
+                {
+                    filtered.push(prof.clone());
+                } else {
+                    println!("{} Unknown preset skipped: {}", style("!").yellow(), name);
+                }
+            }
+            if filtered.is_empty() {
+                return Err("No valid presets provided.".into());
+            }
+            filtered
+        }
+        None => MultiSelect::new("Target hardware tiers:", all_available).prompt()?,
+    };
+
+    let output_base: String = match args.output {
+        Some(p) => p.to_string_lossy().into_owned(),
+        None => {
+            let default_out = if selected_profiles.len() == 1 {
+                format!("./converted_{}", selected_profiles[0].name)
+            } else {
+                "./converted".to_string()
+            };
+
+            Text::new("Output folder:")
+                .with_default(&default_out)
+                .prompt()?
+        }
+    };
 
     let max_cores = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4);
-    let num_cores = CustomType::<usize>::new("Simultaneous tracks (CPU Cores):")
-        .with_default(if max_cores > 1 { max_cores - 1 } else { 1 })
-        .prompt()?;
+    let num_cores = match args.cores {
+        Some(c) => c.clamp(1, max_cores),
+        None => CustomType::<usize>::new("Simultaneous tracks (CPU Cores):")
+            .with_default(if max_cores > 1 { max_cores - 1 } else { 1 })
+            .prompt()?,
+    };
 
     let m = MultiProgress::new();
     let mut final_warning_count = 0;
 
-    // --- Execution ---
     for profile in selected_profiles {
         let dest_dir = Path::new(&output_base).join(profile.name);
         tokio::fs::create_dir_all(&dest_dir).await?;
@@ -83,7 +134,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        // Updated Template: {msg} will display the current filename
         let pb = m.add(ProgressBar::new(files.len() as u64));
         pb.set_style(
             ProgressStyle::with_template(

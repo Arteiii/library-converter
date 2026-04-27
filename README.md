@@ -28,14 +28,35 @@ Ensure you have the [Rust toolchain](https://rustup.rs/) installed.
 
 ---
 
-## Usage
+### 📖 Usage
 
-1. **Source Path:** Enter the directory containing your music.
-2. **Format Selection:** Choose specific tiers (e.g., `legacy, universal`) or type `all`.
+The Pioneer DJ Library Converter supports both an interactive terminal interface (TUI) and a high-speed command-line interface (CLI).
+
+#### **Interactive Mode (TUI)**
+
+If you run the program without arguments, it will guide you through a set of interactive questions:
+
+1. **Source Path:** Enter the directory containing your music (e.g., `D:\Music\originals`).
+2. **Format Selection:** Choose specific hardware tiers using the arrow keys and spacebar (e.g., `flagship`, `legacy`).
 3. **Output Path:** Specify where to save your optimized library. The tool will automatically create sub-folders for each preset.
 4. **Core Count:** Select how many CPU cores to dedicate to the task. (Recommended: Total Cores - 1).
 
----
+#### **Command-Line Interface (CLI)**
+
+you can bypass the questions by passing arguments directly.
+
+| Flag | Full Name   | Description                                                                     |
+| :--- | :---------- | :------------------------------------------------------------------------------ |
+| `-i` | `--input`   | Path to your source music folder                                                |
+| `-o` | `--output`  | Path for the converted output folder                                            |
+| `-p` | `--presets` | Comma-separated list of formats (`flagship`, `standard`, `legacy`, `universal`) |
+| `-c` | `--cores`   | Number of CPU cores to use for parallel processing                              |
+
+**Example Command:**
+
+```bash
+cargo run --release -- -i "D:\Music\originals" -o "D:\Music\originals_format" -p flagship,standard -c 10
+```
 
 ## Technical Architecture
 

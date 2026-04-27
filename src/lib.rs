@@ -1,5 +1,8 @@
 use audioadapter_buffers::direct::InterleavedSlice;
 use hound::{SampleFormat, WavSpec, WavWriter};
+use id3::frame::{Picture as Id3Picture, PictureType as Id3PictureType};
+use id3::{Tag, TagLike, Version};
+use metaflac::{Block, Tag as FlacTag};
 use rubato::{Fft, FixedSync, Indexing, Resampler};
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -8,6 +11,7 @@ use symphonia::core::codecs::{CODEC_TYPE_AAC, CODEC_TYPE_MP3, CodecParameters, D
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
+use symphonia::core::meta::StandardTagKey;
 use symphonia::core::probe::Hint;
 
 impl std::fmt::Display for ConversionProfile {
@@ -137,13 +141,12 @@ pub fn run_conversion(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let file = File::open(&input)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
-
     let mut hint = Hint::new();
     if let Some(ext) = input.extension().and_then(|e| e.to_str()) {
         hint.with_extension(ext);
     }
 
-    let probed = symphonia::default::get_probe().format(
+    let mut probed = symphonia::default::get_probe().format(
         &hint,
         mss,
         &FormatOptions::default(),
@@ -151,6 +154,7 @@ pub fn run_conversion(
     )?;
 
     let mut format = probed.format;
+
     let track = format
         .default_track()
         .ok_or("No default audio track found")?;
@@ -306,5 +310,84 @@ pub fn run_conversion(
     }
 
     writer.finalize()?;
+
+    if let Some(mut metadata) = probed.metadata.get()
+        && let Some(metadata) = metadata.skip_to_latest()
+    {
+        transfer_metadata(metadata, &output, profile)?;
+    }
+
+    Ok(())
+}
+
+fn transfer_metadata(
+    metadata: &symphonia::core::meta::MetadataRevision,
+    output_path: &Path,
+    profile: &ConversionProfile,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    match profile.ext {
+        "wav" | "aiff" => {
+            let mut tag = Tag::new();
+
+            for sym_tag in metadata.tags() {
+                if let Some(key) = sym_tag.std_key {
+                    match key {
+                        StandardTagKey::Album => tag.set_album(sym_tag.value.to_string()),
+                        StandardTagKey::Artist => tag.set_artist(sym_tag.value.to_string()),
+                        StandardTagKey::TrackTitle => tag.set_title(sym_tag.value.to_string()),
+                        StandardTagKey::Genre => tag.set_genre(sym_tag.value.to_string()),
+                        StandardTagKey::TrackNumber => {
+                            let val = sym_tag.value.to_string().parse().unwrap_or(0);
+                            tag.set_track(val);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            for visual in metadata.visuals() {
+                tag.add_frame(Id3Picture {
+                    mime_type: visual.media_type.to_string(),
+                    picture_type: Id3PictureType::CoverFront,
+                    description: "Front Cover".to_string(),
+                    data: visual.data.to_vec(),
+                });
+            }
+            tag.write_to_path(output_path, Version::Id3v24)?;
+        }
+        "flac" => {
+            let mut flac_tag =
+                FlacTag::read_from_path(output_path).unwrap_or_else(|_| FlacTag::new());
+
+            for sym_tag in metadata.tags() {
+                let key = sym_tag
+                    .std_key
+                    .map(|k| format!("{:?}", k))
+                    .unwrap_or_else(|| sym_tag.key.clone());
+                flac_tag
+                    .vorbis_comments_mut()
+                    .set(key, vec![sym_tag.value.to_string()]);
+            }
+
+            for visual in metadata.visuals() {
+                let flac_pic = metaflac::block::Picture {
+                    picture_type: metaflac::block::PictureType::CoverFront,
+                    mime_type: visual.media_type.to_string(),
+                    description: "Front Cover".to_string(),
+                    width: visual.dimensions.map(|d| d.width).unwrap_or(0),
+                    height: visual.dimensions.map(|d| d.height).unwrap_or(0),
+                    depth: 24,
+                    num_colors: 0,
+                    data: visual.data.to_vec(),
+                };
+                flac_tag.push_block(Block::Picture(flac_pic));
+            }
+            flac_tag
+                .write_to_path(output_path)
+                .map_err(|_| "Failed to save FLAC metadata")?;
+        }
+        _ => {}
+    }
+
     Ok(())
 }
