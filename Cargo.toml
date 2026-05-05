@@ -4,19 +4,26 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = { version = "1.52.1", features = ["full", "process"] }
+tokio = { version = "1.52.2", features = ["full", "process"] }
 inquire = "0.9.4"
 indicatif = { version = "0.18.4", features = ["tokio"] }
 console = "0.16.3"
 
 walkdir = "2"
 
-symphonia = { version = "0.5", features = ["all"] }
-rubato = { version = "2.0.0"  } 
-hound = "3.5"
-audioadapter-buffers = { version = "3.0.0" }
 regex = "1"
-id3 = "1.12"
-metaflac = "0.2"     
 clap = { version = "4.6.1", features = ["derive"] }
 
+
+# Pure Rust path dependencies (marked optional)
+hound = { version = "3.5", optional = true }
+symphonia = { version = "0.5", features = ["all"], optional = true }
+rubato = { version = "2.0.0", optional = true }
+audioadapter-buffers = { version = "3.0.0", optional = true }
+id3 = { version = "1.12", optional = true }
+metaflac = { version = "0.2", optional = true }
+
+[features]
+default = ["pure-rust"]
+ffmpeg = []
+pure-rust = ["hound", "symphonia", "rubato", "audioadapter-buffers", "id3", "metaflac"]

@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build for ${{ matrix.os }}
+    name: Build ${{ matrix.asset_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -18,9 +18,16 @@ jobs:
           - os: ubuntu-latest
             artifact_name: pioneer_converter
             asset_name: pioneer_converter-linux-amd64
+            features: ""
+
           - os: windows-latest
             artifact_name: pioneer_converter.exe
             asset_name: pioneer_converter-windows-amd64.exe
+            features: ""
+          - os: windows-latest
+            artifact_name: pioneer_converter.exe
+            asset_name: pioneer_converter-ffmpeg-windows-amd64.exe
+            features: "--features ffmpeg --no-default-features"
 
     steps:
       - name: Checkout
@@ -33,7 +40,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build Release
-        run: cargo build --release
+        run: cargo build --release ${{ matrix.features }}
 
       - name: Package Assets (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -73,9 +80,32 @@ jobs:
           path: ./assets
           merge-multiple: true
 
+      - name: Generate Release Readme
+        run: |
+          cat <<EOF > RELEASE_INFO.md
+          # Release ${{ github.ref_name }}
+
+          ### 🛠 Available Downloads
+
+          Please choose the appropriate version for your system (**Windows** or **Linux**).
+
+          | Build | Engine | Focus | Metadata Support |
+          | :--- | :--- | :--- | :--- |
+          | **ffmpeg-build** | FFmpeg (Bundled) | Stability & Safety | ✅ Full (Tags/Covers) |
+          | **standard-build** | Pure Rust | Performance & Lightweight | ⚠️ Limited |
+
+          #### Version Details:
+          - **FFmpeg Version:** Highly recommended for better stability and safety. FFmpeg is bundled—it is stored in temporary files and managed automatically. No manual installation is required.
+          - **Standard Version:** Pure Rust implementation. Offers better performance and does not rely on external tooling, but metadata/tags might not work as intended.
+
+          ---
+          *Build generated on $(date -u +'%Y-%m-%d %H:%M UTC')*
+          EOF
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_INFO.md
           files: ./assets/*
           generate_release_notes: true
           draft: false
