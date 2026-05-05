@@ -13,7 +13,7 @@ use pioneer_converter::{ConversionProfile, get_presets};
 static FFMPEG_BINARY: &[u8] = if cfg!(windows) {
     include_bytes!("../bin/ffmpeg-windows.exe")
 } else {
-    include_bytes!("../bin/ffmpeg-linux")
+    panic!("ffmpeg not supported for unix")
 };
 
 #[allow(dead_code)]
