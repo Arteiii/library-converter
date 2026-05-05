@@ -5,12 +5,12 @@
 
 version: 2
 updates:
-  - package-ecosystem: "rust" # See documentation for possible values
+  - package-ecosystem: "cargo" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
 
-  - package-ecosystem: "actions" # See documentation for possible values
+  - package-ecosystem: "github-actions" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
