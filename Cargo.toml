@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = { version = "1.52.2", features = ["full", "process"] }
+tokio = { version = "1.52.3", features = ["full", "process"] }
 inquire = "0.9.4"
 indicatif = { version = "0.18.4", features = ["tokio"] }
 console = "0.16.3"
